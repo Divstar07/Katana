@@ -1,0 +1,27 @@
+%{
+ function textAf: Reads in a text file containing airfoil data and returns
+Cl and Cd for any given angle of attack.
+
+NOTE: To use this function, the airfoil data must be from xfoil or have 12
+lines preceeding the first data entry
+
+Arguments:
+- Re: Chord based reynolds number of provided data
+- alpha: Angle of attack
+- filename: Airfoil data file name
+- headerLinesIn: Number of lines in provided file to skip (.ie. that do not
+contain airfoil data .eg headers)
+
+Outputs:
+- Cl: Lift coefficient
+- Cd: Drag coefficient
+%}
+function [Cl, Cd] = afFromFile(alpha, filename, headerLinesIn)
+
+% Store af data in array
+afDat = importdata(filename, ' ', headerLinesIn);
+
+% Find row of alpha, and search for corresponding Cl and Cd
+alphaNearest = interp1(afDat.data(:, 1), afDat.data(:,1), alpha, 'nearest');
+n = alphaNearest == afDat.data(:,1);
+Cl = afDat.data(n, 2); Cd = afDat.data(n, 3);
