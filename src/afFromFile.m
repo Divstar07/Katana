@@ -16,12 +16,13 @@ Outputs:
 - Cl: Lift coefficient
 - Cd: Drag coefficient
 %}
-function [Cl, Cd] = afFromFile(alpha, filename, headerLinesIn)
+function [Re, Cl, Cd] = afFromFile(alpha, filename) 
 
 % Store af data in array
-afDat = importdata(filename, ' ', headerLinesIn);
+af = importdata(filename, ' ', 1);
+Re = str2double(af.textdata);
 
 % Find row of alpha, and search for corresponding Cl and Cd
-alphaNearest = interp1(afDat.data(:, 1), afDat.data(:,1), alpha, 'nearest');
-n = alphaNearest == afDat.data(:,1);
-Cl = afDat.data(n, 2); Cd = afDat.data(n, 3);
+alphaNearest = interp1(af.data(:, 1), af.data(:,1), alpha, 'nearest');
+n = alphaNearest == af.data(:,1);
+Cl = af.data(n, 2); Cd = af.data(n, 3);

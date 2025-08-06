@@ -6,7 +6,7 @@
     Aerodynamics, and Manwell, Wind Energy Explained
 %}
 
-clc, clearvars
+clc, clearvars, close
 
 % Constants
 rhoAir = 1.184; % At 25C
@@ -38,13 +38,11 @@ end
 % - contain airfoil data .eg headers)
 %
 % - Re: Reynolds number for provided airfoil data (for Re corrections)
-function section = initSection(r, c, theta, af, headerLinesIn, Re)
+function section = initSection(r, c, theta, af)
 section.r = r;
 section.c = c;
 section.theta = theta;
 section.af = af;
-section.headerLinesIn = headerLinesIn;
-section.Re = Re;
 end
 
 % Initialize a station based on location on blade section
@@ -57,8 +55,6 @@ station.r = section.r(n);
 station.c = section.c(n);
 station.theta = section.theta(n);
 station.af = section.af(n);
-station.headerLinesIn = section.headerLinesIn(n);
-station.Re = section.Re(n);
 end
 
 % Define the rotor operational point:
@@ -98,7 +94,7 @@ end
       - F: hub/tip loss factor
 %}
 
-function outputs = initOutput(Tp, Qp, a, ap, u, v, phi, alpha, Urel, Cl, Cd, Cn, Cax, F)
+function outputs = initOutput(Tp, Qp, a, ap, u, v, phi, alpha, Urel, Cl, Cd, Cn, Cax, F, k)
 outputs.Tp = Tp;
 outputs.Qp = Qp;
 outputs.a = a;
@@ -113,6 +109,7 @@ outputs.Cd = Cd;
 outputs.Cn = Cn;
 outputs.Cax = Cax;
 outputs.F = F;
+outputs.k = k;
 end
 
 % Compute the tip/hub loss factor by Glauert's method
@@ -158,7 +155,7 @@ Urel = sqrt((op.Uinf)^2 + (V)^2);
 Re_c = (op.rho*Urel*station.c)/op.mu; % To be used for Re corrections
 
 % Look up Cl and Cd (f(alpha, Re)
-[Cl, Cd] = afFromFile(alpha, station.af, station.headerLinesIn); % currently placeholders
+[afRe, Cl, Cd] = afFromFile(alpha, station.af);
 
 % Apply rotational and Re correction
 
@@ -168,21 +165,22 @@ Cax = Cl*sphi - Cd*cphi;
 
 % Compute k and kp (Arbitrary constants to help with calculating a and
 % ap)
-k = (sigma_p*Cax)/(4*F*sphi^2);
+k = (sigma_p*Cn)/(4*F*sphi^2);
 kp = (sigma_p*Cax)/(4*F*sphi*cphi);
 
-% Compute a and ap (neglecting phi<0 case)
+% Compute a and ap
+if phi < 0
+    k = -k;
+end
 
-% State corresopnds to Uinf=0 or omega*R = 0, return any nonzero
-% residual
 if isapprox(k, 1.0, "tight") || isapprox(kp, 1.0, "tight")
-    R = 1.0; outputs = initOutput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    % corresponds Uinf=0 or omega*R = 0, return any nonzero residual
+    R = 1.0; outputs = initOutput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     return
 end
 
 if k <= 2.0/3  % momentum region
     a = k/(1 + k);
-
 else
     g1 = 2*k - 1.0/9;
     g2 = 2*k - 1.0/3;
@@ -195,17 +193,16 @@ ap = kp/(1-kp);
 u = op.Uinf*a; v = V*ap;
 
 % Obtain a residual function R(phi)
-R = sin(phi)/(1-a) - cos(phi)/(op.tsr*(1+ap));
+R = sin(phi)/(1-a) - cos(phi)/(localTsr*(1+ap));
 
 % Compute Urel (considering induction)
 Urel = sqrt((op.Uinf - u)^2 + (V + v)^2);
 
-% Compute Tp (Thrust per unit length)
+% Compute Tp (Thrust per unit length) and Qp (Torque per  unit length)
 Tp = rotor.B*Cn*0.5*op.rho*Urel^2*station.c;
-Qp = rotor.B*Cax*0.5*op.rho*Urel^2*station.c;
+Qp = rotor.B*station.r*Cax*0.5*op.rho*Urel^2*station.c;
 
-% Compute Qp (Torque per  unit length)
-outputs = initOutput(Tp, Qp, a, ap, u, v, phi, alpha, Urel, Cl, Cd, Cn, Cax, F);
+outputs = initOutput(Tp, Qp, a, ap, u, v, phi, alpha, Urel, Cl, Cd, Cn, Cax, F, k);
 
 end
 
@@ -237,9 +234,9 @@ end
 
 % function solveStation: solves BEM for a station
 % Arguments:
-% -   rotor: rotor properties
-% -   station: station properties
-% -   op: operating point
+% - rotor: rotor properties
+% - station: station properties
+% - op: operating point
 % Returns:
 % - outputs: BEM output data
 function outputs = solveStation(rotor, station, op, npts)
@@ -251,7 +248,7 @@ if isapprox(station.r, rotor.Rtip, "tight") || isapprox(station.r, rotor.Rhub, "
 end
 
 % Initialize phimin and phimax, limits for finding bracket in residual
-phimin = 0; phimax = pi/2;
+phimin = 1e-6; phimax = pi/2;
 
 % Pull out residual from residualAndOutputs
     function R = residual(phi)
@@ -261,16 +258,12 @@ phimin = 0; phimax = pi/2;
 % Find bracket where R changes sign
 [success, phiU, phiL] = firstBracket(@(phi)residual(phi), phimin, phimax, npts);
 
-% Find phistar (phi that satisfies R = 0) with Brent's method (only if
-% success)
+% Find phistar (phi that satisfies R = 0) with Brent's method
 if success
     phistar = fzero(@(phi)residual(phi), [phiL, phiU]);
-else
-    phistar = fzero(@(phi)residual(phi), pi/2);
+% else
+%     phistar = fzero(@(phi)residual(phi), pi/2) % if firstBrackcet fails start Brent's from pi/2
 end
-
-% msg = ['R(phistar) =' num2str(residual(phistar))]; % test phistar by evaluating R at phistar
-% disp(msg);
 
 % Find correct outputs with phistar
 [~, outputs] = residualAndOutputs(phistar, rotor, station, op);
@@ -350,8 +343,7 @@ end
 % - [Ctmax, tsr2, Cp2, Cq2]: Max Ct '' '' ''
 % - [Cqmax, tsr3, Cp3, Ct3]: Max Cq '' '' ''
 
-function [Cpmax, tsr_p, Ct_p, Cq_p, Ctmax, tsr_t, Cp_t, Cq_t, Cqmax, tsr_q, Cp_q, Ct_q] = performancePlot(rotor, section, op)
-
+function [maxCp, maxCt, maxCq] = performancePlot(rotor, section, op)
 % Generate tsrVec
 tsrVec = linspace(op.tsrL, op.tsrU, 20);
 
@@ -382,14 +374,21 @@ hold on
 legend('Cp', 'Ct', 'Cq')
 
 % Find max for all coefficients and location in array
-Cpmax = max(Cp); np = Cp == Cpmax;
-tsr_p = tsrVec(np); Ct_p = Ct(np); Cq_p = Cq(np);
+maxCp(1) = max(Cp); np = Cp == maxCp(1);
+maxCp(2) = tsrVec(np); maxCp(3) = Ct(np); maxCp(4) = Cq(np);
 
-Ctmax = max(Ct); nt = Ct == Ctmax;
-tsr_t = tsrVec(nt); Cp_t = Cp(nt); Cq_t = Cq(nt);
+maxCt(1) = max(Ct); nt = Ct == maxCt(1);
+maxCt(2) = tsrVec(nt); maxCt(3) = Cp(nt); maxCt(4) = Cq(nt);
 
-Cqmax = max(Cq); nq = Cq == Cqmax;
-tsr_q = tsrVec(nq); Cp_q = Cq(nq); Ct_q = Ct(nq);
+maxCq(1) = max(Cq); nq = Cq == maxCq(1);
+maxCq(2) = tsrVec(nq); maxCq(3) = Cp(nq); maxCq(4) = Ct(nq);
+
+msg = ['At max Cp, Cp = ' num2str(maxCp(1)), ', TSR = ' num2str(maxCp(2)), ', Ct = ' num2str(maxCp(3)), ', Cq = ' num2str(maxCp(4))];
+disp(msg);
+msg = ['At max Ct, Ct = ' num2str(maxCt(1)), ', TSR = ' num2str(maxCt(2)), ', Cp = ' num2str(maxCt(3)), ', Cq = ' num2str(maxCt(4))];
+disp(msg);
+msg = ['At max Cq, Cq = ' num2str(maxCq(1)), ', TSR = ' num2str(maxCq(2)), ', Cp = ' num2str(maxCq(3)), ', Ct = '  num2str(maxCq(4))];
+disp(msg);
 
 end
 
@@ -406,26 +405,15 @@ theta = deg2rad([13.308, 13.308, 13.308, 13.308, 11.480, 10.162, 9.011, 7.795, 6
 afData = ["data/Cylinder1.dat", "data/Cylinder2.dat", "data/DU40_A17.dat", "data/DU35_A17.dat", "data/DU30_A17.dat", "data/DU25_A17.dat", "data/DU21_A17.dat", "data/NACA64_A17.dat"];
 afIndex = [1, 1, 2, 3, 4, 4, 5, 6, 6, 7, 7, 8, 8, 8, 8, 8, 8];
 airfoils = afData(afIndex);
-headerLinesIn = 3;
-skipNo = zeros(1, length(r)) + headerLinesIn;
-re = 50000;
 
-testSection = initSection(r, chord, theta, airfoils, skipNo, re);
+testSection = initSection(r, chord, theta, airfoils);
 
 % op params
 Uinf = 10; tsrL = 2; tsrU = 15; tsr = 7.55;
 op = initOp(Uinf, rhoAir, muAir, tsrL, tsrU, tsr);
 
 % testStation = initStation(testSection, 5);
-% [Cl, Cd] = afFromFile(-180, testStation.af, 3)
+% [Re, Cl, Cd] = afFromFile(-75, testStation.af);
 
 % Max conditions for all coefficients
-CpMaxCondition = zeros(1, 4); CtMaxCondition = zeros(1,4); CqMaxCondition = zeros(1,4);
-
-[CpMaxCondition(1), CpMaxCondition(2), CpMaxCondition(3), CpMaxCondition(4), CtMaxCondition(1), CtMaxCondition(2), CtMaxCondition(3), CtMaxCondition(4), CqMaxCondition(1), CqMaxCondition(2), CqMaxCondition(3), CqMaxCondition(4)] = performancePlot(testRotor, testSection, op);
-msg = ['At max Cp, Cp = ' num2str(CpMaxCondition(1)), ', TSR = ' num2str(CpMaxCondition(2)), ', Ct = ' num2str(CpMaxCondition(3)), ', Cq = ' num2str(CpMaxCondition(4))];
-disp(msg);
-msg = ['At max Ct, Ct = ' num2str(CtMaxCondition(1)), ', TSR = ' num2str(CtMaxCondition(2)), ', Cp = ' num2str(CtMaxCondition(3)), ', Cq = ' num2str(CtMaxCondition(4))];
-disp(msg);
-msg = ['At max Cq, Cq = ' num2str(CqMaxCondition(1)), ', TSR = ' num2str(CqMaxCondition(2)), ', Cp = ' num2str(CqMaxCondition(3)), ', Ct = '  num2str(CqMaxCondition(4))];
-disp(msg);
+[maxCp, maxCt, maxCq] = performancePlot(testRotor, testSection, op);

@@ -5,35 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## \[Unreleased]
 
 ### Added
-1. Error handling for phi<0 in residualAndOutputs
+
+
 
 ### Fixed
+
+
+
+### Changed
+
+
+
+### Removed
+
+
+
+## \[1.1.1] - 2025-08-08
+
+### Added
+
+
+
+### Fixed
+
 1. Use local TSR instead of TSR in residualAndOutputs
+2. Use correct formula for Q' (.ie Q' = B \* r \* Cax \* 0.5 \* rho \* Urel^2 \* c)
+3. Use correct formula for k and k' (lines 167 - 168)
 
 ### Changed
-1. Be able to automatically bypass all non-numeric headers in supplied airfoil data files
-2. Be able to get Reynolds number from provided airfoil data files
-3. Mandate that the first number encountered in the airfoil data files is the Reynolds number for the data?
-4. Mandate that the format for supplying airfoil data be:
-     - The first line contains only the Reynolds number
-     - The succeding lines contain the airfoil data
+
+1. Mandate that the format for supplying airfoil data be:
+
+   * The first line contains only the Reynolds number
+   * The succeding lines contain the airfoil data
+     and modify rotor, section, and station definitions accordingly
+
+2. Modify performancePlot to take in arrays, and handle displaying information on max conditions internally
+3. Increase limits for search for firstBracket
 
 ### Removed
 
 
-## [1.1.1] - 2025-08-08
-
-### Added
-
-
-### Fixed
-
--
-### Changed
-
-
-### Removed
 
