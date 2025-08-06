@@ -343,7 +343,7 @@ end
 
 function [maxCp, maxCt, maxCq] = performancePlot(rotor, section, op)
 % Generate tsrVec
-tsrVec = linspace(op.tsrL, op.tsrU, 20);
+tsrVec = linspace(op.tsrL, op.tsrU, 2);
 
 % Initialize Cpvec, Ctvec, Cqvec
 Cp = zeros(1, length(tsrVec));
@@ -365,7 +365,7 @@ ylabel('C_{p}, C_{t}')
 hold on
 
 plot (tsrVec, Ct)
-hold on
+hold off
 
 
 % Find max for all coefficients and location in array
