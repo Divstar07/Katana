@@ -10,7 +10,7 @@ Katana is a simple BEM code inspired by BYU CCBlade
  - [CCBlade](https://github.com/byuflowlab/CCBlade.jl/tree/master) developed by Prof. Andrew Ning from Brigham Young University (BYU) was used as reference for Katana.
  - The solution method in Katana was adapted from [Ning, Computational Aerodynamics, pp. 200-228](https://byu.box.com/shared/static/ywfayozbj3sr2ot6b32u8nqk5brqvurt.pdf)
  - Other theoretical backing for this code was taken from [Manwell, Wind Energy Explained](https://onlinelibrary.wiley.com/doi/book/10.1002/9781119994367)
- - Thanks to [Prof. John Kurelek](https://smithengineering.queensu.ca/directory/faculty/john-w-kurelek.html) and [Aidan Westdale](https://kurelek.smithengineering.queensu.ca/people/) and many others for their support!
+ - Thanks to [Prof. John Kurelek](https://smithengineering.queensu.ca/directory/faculty/john-w-kurelek.html) and [Aidan Westdal](https://kurelek.smithengineering.queensu.ca/people/) and many others for their support!
  
  
 
