@@ -129,13 +129,13 @@ end
 
 % BEM core algorithm
 % Arguments:
-% - phi: initial phi
-% - rotor: rotor properties
-% - station: station properties
-% - op: operating point
+    % - phi: initial phi
+    % - rotor: rotor properties
+    % - station: station properties
+    % - op: operating point
 % Returns:
-% - R: residual function
-% - outputs: BEM output data
+    % - R: residual function
+    % - outputs: BEM output data
 
 function [R, outputs] = residualAndOutputs(phi, rotor, station, op)
 
@@ -145,7 +145,7 @@ localTsr = op.tsr*(station.r/rotor.Rtip);
 F = prandtlLoss(rotor.B, rotor.Rhub, rotor.Rtip, station.r, phi);
 sphi = sin(phi);
 cphi = cos(phi);
-V = (localTsr*op.Uinf);
+V = (localTsr*op.Uinf); % V = omega*r
 
 % Determine alpha
 alpha = phi - (station.theta);
@@ -343,7 +343,7 @@ end
 
 function [maxCp, maxCt, maxCq] = performancePlot(rotor, section, op)
 % Generate tsrVec
-tsrVec = linspace(op.tsrL, op.tsrU, 2);
+tsrVec = linspace(op.tsrL, op.tsrU, 20);
 
 % Initialize Cpvec, Ctvec, Cqvec
 Cp = zeros(1, length(tsrVec));
@@ -363,8 +363,8 @@ title('Rotor Performance Plot')
 xlabel('Tip Speed Ratio (\lambda)')
 ylabel('C_{p}, C_{t}')
 hold on
-
 plot (tsrVec, Ct)
+legend('C_{p}', 'C_{t}');
 hold off
 
 
@@ -404,9 +404,6 @@ testSection = initSection(r, chord, theta, airfoils);
 % op params
 Uinf = 10; tsrL = 2; tsrU = 15; tsr = 7.55;
 op = initOp(Uinf, rhoAir, muAir, tsrL, tsrU, tsr);
-
-% testStation = initStation(testSection, 5);
-% [Re, Cl, Cd] = afFromFile(-75, testStation.af);
 
 % Max conditions for all coefficients
 [maxCp, maxCt, maxCq] = performancePlot(testRotor, testSection, op);
