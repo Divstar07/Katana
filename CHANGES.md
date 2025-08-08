@@ -14,9 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 
-
 ### Changed
-
+1. Convert Katana.m into a package
 
 
 ### Removed
@@ -32,9 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 1. Use local TSR instead of TSR in residualAndOutputs
-2. Use correct formula for Q' (.ie Q' = B \* r \* Cax \* 0.5 \* rho \* Urel^2 \* c)
+2. Use correct formula for Q' (.ie Q' = B\*r \*Cax\*0.5\*rho\*Urel^2\*c)
 3. Use correct formula for k and k' (lines 167 - 168)
 4. Phimin changed to 1e-6 instead of 0
+5. Use degrees to lookup airfoil data instead of radians
 
 ### Changed
 

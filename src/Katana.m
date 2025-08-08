@@ -90,11 +90,14 @@ end
       - Cl: Lift coefficient
       - Cd: Drag coefficient
       - Cn: Normal force coefficient
-      - Cax: Axial force coefficient
+      - Ctan: Axial force coefficient
       - F: hub/tip loss factor
+      - k: arbitrary constant for calculating a
+      - Np: Normal force per unit length
+      - Tanp: Tangential force per unit length
 %}
 
-function outputs = initOutput(Tp, Qp, a, ap, u, v, phi, alpha, Urel, Cl, Cd, Cn, Cax, F, k)
+function outputs = initOutput(Tp, Qp, a, ap, u, v, phi, alpha, Urel, Cl, Cd, Cn, Ctan, F, k, Np, Tanp)
 outputs.Tp = Tp;
 outputs.Qp = Qp;
 outputs.a = a;
@@ -107,9 +110,11 @@ outputs.Urel = Urel;
 outputs.Cl = Cl;
 outputs.Cd = Cd;
 outputs.Cn = Cn;
-outputs.Cax = Cax;
+outputs.Ctan = Ctan;
 outputs.F = F;
 outputs.k = k;
+outputs.Np = Np;
+outputs.Tanp = Tanp;
 end
 
 % Compute the tip/hub loss factor by Glauert's method
@@ -159,14 +164,14 @@ Re_c = (op.rho*Urel*station.c)/op.mu; % To be used for Re corrections
 
 % Apply rotational and Re correction
 
-% Compute Cn and Cax (Coefficient of Axial force)
+% Compute Cn and Ctan (Coefficient of tangential force)
 Cn = Cl*cphi + Cd*sphi;
-Cax = Cl*sphi - Cd*cphi;
+Ctan = Cl*sphi - Cd*cphi;
 
 % Compute k and kp (Arbitrary constants to help with calculating a and
 % ap)
 k = (sigma_p*Cn)/(4*F*sphi^2);
-kp = (sigma_p*Cax)/(4*F*sphi*cphi);
+kp = (sigma_p*Ctan)/(4*F*sphi*cphi);
 
 % Compute a and ap
 if phi < 0
@@ -175,7 +180,7 @@ end
 
 if isapprox(k, 1.0, "tight") || isapprox(kp, 1.0, "tight")
     % corresponds Uinf=0 or omega*R = 0, return any nonzero residual
-    R = 1.0; outputs = initOutput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    R = 1.0; outputs = initOutput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     return
 end
 
@@ -199,10 +204,15 @@ R = sin(phi)/(1-a) - cos(phi)/(localTsr*(1+ap));
 Urel = sqrt((op.Uinf - u)^2 + (V + v)^2);
 
 % Compute Tp (Thrust per unit length) and Qp (Torque per  unit length)
-Tp = rotor.B*Cn*0.5*op.rho*Urel^2*station.c;
-Qp = rotor.B*station.r*Cax*0.5*op.rho*Urel^2*station.c;
 
-outputs = initOutput(Tp, Qp, a, ap, u, v, phi, alpha, Urel, Cl, Cd, Cn, Cax, F, k);
+
+Np = Cn*0.5*op.rho*Urel^2*station.c; % Normal force per unit length
+Tanp = Ctan*0.5*op.rho*Urel^2*station.c; % Tangential force per unit length
+
+Tp = rotor.B*Np;
+Qp = rotor.B*station.r*Tanp;
+
+outputs = initOutput(Tp, Qp, a, ap, u, v, phi, alpha, Urel, Cl, Cd, Cn, Ctan, F, k, Np, Tanp);
 
 end
 
@@ -243,7 +253,7 @@ function outputs = solveStation(rotor, station, op, npts)
 
 % Check if hub/tip is being evaluated
 if isapprox(station.r, rotor.Rtip, "tight") || isapprox(station.r, rotor.Rhub, "tight")
-    outputs = initOutput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    outputs = initOutput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     return
 end
 
@@ -343,7 +353,8 @@ end
 
 function [maxCp, maxCt, maxCq] = performancePlot(rotor, section, op)
 % Generate tsrVec
-tsrVec = linspace(op.tsrL, op.tsrU, 20);
+ntsr = 20;
+tsrVec = linspace(op.tsrL, op.tsrU, ntsr);
 
 % Initialize Cpvec, Ctvec, Cqvec
 Cp = zeros(1, length(tsrVec));
@@ -386,24 +397,3 @@ msg = ['At max Cq, Cq = ' num2str(maxCq(1)), ', TSR = ' num2str(maxCq(2)), ', Cp
 disp(msg);
 
 end
-
-% rotor params
-Rhub = 1.5; Rtip = 63; B = 3;
-testRotor = initRotor(Rhub, Rtip, B, 'none', 'none');
-% section params
-r = [2.8667, 5.6000, 8.3333, 11.7500, 15.8500, 19.9500, 24.0500, 28.1500, 32.2500, 36.3500, 40.4500, 44.5500, 48.6500, 52.7500, 56.1667, 58.9000, 61.6333];
-chord = [3.542, 3.854, 4.167, 4.557, 4.652, 4.458, 4.249, 4.007, 3.748, 3.502, 3.256, 3.010, 2.764, 2.518, 2.313, 2.086, 1.419];
-theta = deg2rad([13.308, 13.308, 13.308, 13.308, 11.480, 10.162, 9.011, 7.795, 6.544, 5.361, 4.188, 3.125, 2.319, 1.526, 0.863, 0.370, 0.106]);
-
-afData = ["data/Cylinder1.dat", "data/Cylinder2.dat", "data/DU40_A17.dat", "data/DU35_A17.dat", "data/DU30_A17.dat", "data/DU25_A17.dat", "data/DU21_A17.dat", "data/NACA64_A17.dat"];
-afIndex = [1, 1, 2, 3, 4, 4, 5, 6, 6, 7, 7, 8, 8, 8, 8, 8, 8];
-airfoils = afData(afIndex);
-
-testSection = initSection(r, chord, theta, airfoils);
-
-% op params
-Uinf = 10; tsrL = 2; tsrU = 15; tsr = 7.55;
-op = initOp(Uinf, rhoAir, muAir, tsrL, tsrU, tsr);
-
-% Max conditions for all coefficients
-[maxCp, maxCt, maxCq] = performancePlot(testRotor, testSection, op);

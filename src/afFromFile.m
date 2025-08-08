@@ -21,8 +21,9 @@ function [Re, Cl, Cd] = afFromFile(alpha, filename)
 % Store af data in array
 af = importdata(filename, ' ', 1);
 Re = str2double(af.textdata);
+alphaDeg = rad2deg(alpha);
 
 % Find row of alpha, and search for corresponding Cl and Cd
-alphaNearest = interp1(af.data(:, 1), af.data(:,1), alpha, 'nearest');
+alphaNearest = interp1(af.data(:, 1), af.data(:,1), alphaDeg, 'nearest');
 n = alphaNearest == af.data(:,1);
 Cl = af.data(n, 2); Cd = af.data(n, 3);

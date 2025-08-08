@@ -1,0 +1,3 @@
+This folder stores functions that are useful for common tasks such as plotting a specific output from BEM.
+The user therefore does not need to re-implement the functions. Using these functions is completely optional.
+To use these functions, copy them into "Katana.m".
